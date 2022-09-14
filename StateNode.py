@@ -253,10 +253,10 @@ class StateNode:
                     self.action = temp_acc * self.train_model.weight / self.train_model.max_traction_force
                 else:
                     self.action = temp_acc * self.train_model.weight / self.train_model.max_brake_force
-                if self.action > 1.5:
-                    self.action = np.array(1.5).reshape(1)
-                if self.action < -1.5:
-                    self.action = np.array(-1.5).reshape(1)
+                if self.action > 1:
+                    self.action = np.array(1).reshape(1)
+                if self.action < -1:
+                    self.action = np.array(-1).reshape(1)
                 break
             temp_velocity = self.state[1]
             temp_square_velocity = temp_velocity * temp_velocity + 2 * self.acc * self.line.delta_distance
@@ -284,10 +284,10 @@ class StateNode:
                     self.action = temp_acc * self.train_model.weight / self.train_model.max_traction_force
                 else:
                     self.action = temp_acc * self.train_model.weight / self.train_model.max_brake_force
-                if self.action > 1.5:
-                    self.action = np.array(1.5).reshape(1)
-                if self.action < -1.5:
-                    self.action = np.array(-1.5).reshape(1)
+                if self.action > 1:
+                    self.action = np.array(1).reshape(1)
+                if self.action < -1:
+                    self.action = np.array(-1).reshape(1)
         self.state[1] = initial_velocity
 
     # 下面是奖励的计算

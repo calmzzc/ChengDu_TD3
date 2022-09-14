@@ -27,13 +27,13 @@ class TD3Config:
     def __init__(self) -> None:
         self.algo = 'TD3_CD'
         self.env = 'Section8'
-        self.seed = 0
+        self.seed = 2
         self.result_path = curr_path + "/results/" + self.env + '/' + curr_time + '/results/'  # path to save results
         self.model_path = curr_path + "/results/" + self.env + '/' + curr_time + '/models/'  # path to save models
         self.start_timestep = 25e3  # Time steps initial random policy is used
         self.eval_freq = 5e3  # How often (time steps) we evaluate
-        self.train_eps = 200
-        self.eval_eps = 10
+        self.train_eps = 10000
+        self.eval_eps = 30
         self.max_timestep = 4000000  # Max time steps to run environment
         self.expl_noise = 0.1  # Std of Gaussian exploration noise
         self.memory_capacity = 8000
@@ -42,22 +42,22 @@ class TD3Config:
         self.lr = 0.0005  # Target network update rate
         self.policy_noise = 0.2  # Noise added to target policy during critic update
         self.noise_clip = 0.5  # Range to clip target policy noise
-        self.policy_freq = 2  # Frequency of delayed policy updates
+        self.policy_freq = 1  # Frequency of delayed policy updates
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 def env_agent_config(cfg, seed=1):
     line = Section[cfg.env]
     # 随机种子
-    torch.manual_seed(seed)
-    torch.cuda.manual_seed_all(seed)
-    np.random.seed(seed)
-    random.seed(seed)
+    torch.manual_seed(cfg.seed)
+    torch.cuda.manual_seed_all(cfg.seed)
+    np.random.seed(cfg.seed)
+    random.seed(cfg.seed)
     torch.backends.cudnn.deterministic = True
 
     state_dim = 2
     action_dim = 1
-    agent = TD3(state_dim, action_dim, 1.5, cfg)
+    agent = TD3(state_dim, action_dim, 1, cfg)
     train_model = Train()
     return line, agent, train_model
 
