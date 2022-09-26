@@ -4,7 +4,7 @@ import warnings
 import datetime
 import torch
 import random
-
+import time
 from train_model import Train
 from agent import TD3
 from utils import save_results, make_dir
@@ -27,12 +27,12 @@ class TD3Config:
     def __init__(self) -> None:
         self.algo = 'TD3_CD'
         self.env = 'Section8'
-        self.seed = 2
+        self.seed = 19  # 2能达到一定的效果
         self.result_path = curr_path + "/results/" + self.env + '/' + curr_time + '/results/'  # path to save results
         self.model_path = curr_path + "/results/" + self.env + '/' + curr_time + '/models/'  # path to save models
         self.start_timestep = 25e3  # Time steps initial random policy is used
         self.eval_freq = 5e3  # How often (time steps) we evaluate
-        self.train_eps = 10000
+        self.train_eps = 600
         self.eval_eps = 30
         self.max_timestep = 4000000  # Max time steps to run environment
         self.expl_noise = 0.1  # Std of Gaussian exploration noise
@@ -42,7 +42,7 @@ class TD3Config:
         self.lr = 0.0005  # Target network update rate
         self.policy_noise = 0.2  # Noise added to target policy during critic update
         self.noise_clip = 0.5  # Range to clip target policy noise
-        self.policy_freq = 1  # Frequency of delayed policy updates
+        self.policy_freq = 2  # Frequency of delayed policy updates
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
@@ -278,15 +278,21 @@ def eval(cfg, line, agent, train_model):
 
 if __name__ == "__main__":
     cfg = TD3Config()
-    line, agent, train_model = env_agent_config(cfg, seed=1)
+    line, agent, train_model = env_agent_config(cfg, seed=2)
+    train_time_start = time.time()
     t_rewards, t_ma_rewards, v_list, t_list, a_list, ep_list, power_list, ma_power_list, unsafe_c, ma_unsafe_c, acc_list, total_t_power_list, total_re_power_list = train(cfg, line, agent, train_model)
+    train_time_end = time.time()
+    train_time = train_time_end - train_time_start
     make_dir(cfg.result_path, cfg.model_path)
     agent.save(path=cfg.model_path)
     save_results(t_rewards, t_ma_rewards, tag='train', path=cfg.result_path)
     # 测试
-    line, agent, train_mdoel = env_agent_config(cfg, seed=1)
+    line, agent, train_mdoel = env_agent_config(cfg, seed=2)
     agent.load(path=cfg.model_path)
+    eval_time_start = time.time()
     rewards, ma_rewards, ev_list, et_list, ea_list, eval_ep_list, eacc_list = eval(cfg, line, agent, train_model)
+    eval_time_end = time.time()
+    eval_time = eval_time_end - eval_time_start
     save_results(rewards, ma_rewards, tag='eval', path=cfg.result_path)
 
     # 画图
@@ -303,3 +309,5 @@ if __name__ == "__main__":
     #                    path=cfg.result_path)
     plot_evalep_speed(ev_list, et_list, ea_list, eval_ep_list, eacc_list, tag="ep_eval", env=cfg.env, algo=cfg.algo,
                       path=cfg.result_path)
+    print("训练时间为{}".format(train_time))
+    print("计算时间为{}".format(eval_time / 30))

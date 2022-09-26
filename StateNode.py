@@ -66,12 +66,12 @@ class StateNode:
             self.action = np.array(self.action).reshape(1)
 
     def reshape_action(self):  # 重整动作
-        # if self.step <= 3:
-        #     self.action = (self.action + 1) / 2
-        # elif self.max_step - self.step <= 3:
-        #     self.action = (self.action - 0.5) / 2
-        # else:
-        #     self.action = self.action
+        if self.step <= 0.1 * self.max_step:
+            self.action = (self.action + 1) / 2
+        elif self.max_step - self.step <= 0.1 * self.max_step:
+            self.action = (self.action - 1) / 2
+        else:
+            self.action = self.action
         low_bound = -1
         upper_bound = 1
         # 重整当前动作
@@ -253,10 +253,10 @@ class StateNode:
                     self.action = temp_acc * self.train_model.weight / self.train_model.max_traction_force
                 else:
                     self.action = temp_acc * self.train_model.weight / self.train_model.max_brake_force
-                if self.action > 1:
-                    self.action = np.array(1).reshape(1)
-                if self.action < -1:
-                    self.action = np.array(-1).reshape(1)
+                if self.action > 1.5:
+                    self.action = np.array(1.5).reshape(1)
+                if self.action < -1.5:
+                    self.action = np.array(-1.5).reshape(1)
                 break
             temp_velocity = self.state[1]
             temp_square_velocity = temp_velocity * temp_velocity + 2 * self.acc * self.line.delta_distance
