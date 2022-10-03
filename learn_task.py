@@ -284,7 +284,7 @@ def eval(cfg, line, agent, train_model):
 
 if __name__ == "__main__":
     cfg = TD3Config()
-    line, agent, train_model = env_agent_config(cfg, seed=2)
+    line, agent, train_model = env_agent_config(cfg, seed=19)
     train_time_start = time.time()
     t_rewards, t_ma_rewards, v_list, t_list, a_list, ep_list, power_list, ma_power_list, unsafe_c, ma_unsafe_c, acc_list, total_t_power_list, total_re_power_list, limit_list, A_limit_list = train(cfg, line,
                                                                                                                                                                                                     agent,
@@ -295,7 +295,7 @@ if __name__ == "__main__":
     agent.save(path=cfg.model_path)
     save_results(t_rewards, t_ma_rewards, tag='train', path=cfg.result_path)
     # 测试
-    line, agent, train_mdoel = env_agent_config(cfg, seed=2)
+    line, agent, train_mdoel = env_agent_config(cfg, seed=19)
     agent.load(path=cfg.model_path)
     eval_time_start = time.time()
     rewards, ma_rewards, ev_list, et_list, ea_list, eval_ep_list, eacc_list = eval(cfg, line, agent, train_model)
