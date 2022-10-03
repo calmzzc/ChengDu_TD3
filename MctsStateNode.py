@@ -3,11 +3,11 @@ import torch
 
 
 class MctsStateNode:
-    def __init__(self, state, step, line, agent, episode, ou_noise, train_flag, train_model, parent=None):
+    def __init__(self, state, step, line, agent, episode, train_flag, train_model, parent=None):
         self.line = line  # 区间
         self.train_model = train_model  # 列车模型
         self.agent = agent  # 神经网络
-        self.ou_noise = ou_noise  # OU噪声
+        # self.ou_noise = ou_noise  # OU噪声
 
         self.state = state  # 当前状态 ,0是时间，1是速度
         self.acc = 0  # 当前合加速度
@@ -136,7 +136,7 @@ class MctsStateNode:
                 self.get_acc()
                 self.get_next_state()
                 self.get_power()
-                self._children[action] = MctsStateNode(self.next_state.copy(), self.step + 1, self.line, self.agent, self.episode, self.ou_noise, self.train_flag, self.train_model, parent=self)
+                self._children[action] = MctsStateNode(self.next_state.copy(), self.step + 1, self.line, self.agent, self.episode, self.train_flag, self.train_model, parent=self)
                 self._children[action].current_reward = self.current_reward
 
     def get_simulate_reward(self):
@@ -192,7 +192,7 @@ class MctsStateNode:
             temp = np.array(self.action).reshape(1)
             temp = torch.FloatTensor(temp).to(self.agent.device)
             temp = temp[None, :]
-            self.current_q = self.agent.target_critic(temp_state, temp.detach())
+            self.current_q = np.max(self.agent.critic(temp_state, temp.detach()))
             t._Q += self.gama * self.current_q / t._n_visits
             t._R += self.gama * self.current_reward / t._n_visits
             t = t._parent
@@ -217,7 +217,7 @@ class MctsStateNode:
             temp = np.array(action).reshape(1)
             temp = torch.FloatTensor(temp).to(self.agent.device)
             temp = temp[None, :]
-            q_list.append(self.agent.target_critic(temp_state, temp.detach()))
+            q_list.append(np.max(self.agent.critic(temp_state, temp.detach())))
         simulate_index = np.argmax(q_list)
         temp_reward = self.current_reward
         self.action = (simulate_index - 7) * 0.2
@@ -226,7 +226,7 @@ class MctsStateNode:
         self.get_next_state()
         self.get_power()
         self.get_simulate_reward()
-        self.next_simulate_node = MctsStateNode(self.next_state.copy(), self.step + 1, self.line, self.agent, self.episode, self.ou_noise, self.train_flag, self.train_model, parent=self)
+        self.next_simulate_node = MctsStateNode(self.next_state.copy(), self.step + 1, self.line, self.agent, self.episode, self.train_flag, self.train_model, parent=self)
         self.next_simulate_node.current_reward = self.current_reward
         self.current_reward = temp_reward
         if self.next_simulate_node.step % 5 != 0 and self.next_simulate_node.step <= self.max_step:
@@ -247,7 +247,7 @@ class MctsStateNode:
             self._selected_children.update_uct()  # 主要是这里的更新
 
     def Mcts_Start(self):
-        MctsNode = MctsStateNode(self.state, self.step, self.line, self.agent, self.episode, self.ou_noise, self.train_flag, self.train_model, parent=None)
+        MctsNode = MctsStateNode(self.state, self.step, self.line, self.agent, self.episode, self.train_flag, self.train_model, parent=None)
         if MctsNode.is_leaf():
             MctsNode.expand()
         if MctsNode._parent is None:
@@ -312,7 +312,7 @@ class MctsStateNode:
             if self.episode > 100:
                 self.action = self.agent.choose_action(self.state)
                 self.action = np.array(self.action).reshape(1)
-                self.action = self.ou_noise.get_action(self.action, self.step)
+                self.action = self.action + np.random.normal(0, 1 * 0.1, size=1)
             else:
                 self.action = np.array(np.random.uniform(-1, 1)).reshape(1)
         else:

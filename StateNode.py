@@ -35,8 +35,12 @@ class StateNode:
         self.speed_punish = 0  # 超速惩罚标志位
 
         self.current_limit_speed = 0  # 当前限速
+        self.c_limit_speed = float("inf")  # 用来画图
+        self.a_limit_speed = float("inf")  # ATP限速，用来画图
         self.ave_v = 0  # 本阶段平均速度
         self.p_indicator = -10  # 超速惩罚
+
+        self.ATP_limit = float("inf")
 
     # # 获取最大step
     # def get_max_step(self):
@@ -64,6 +68,23 @@ class StateNode:
         else:
             self.action = self.agent.choose_action(self.state)
             self.action = np.array(self.action).reshape(1)
+
+    def get_ATP_limit(self):
+        key_list = []
+        key = 0
+        key_next = 0
+        for i in self.line.speed_limit.keys():
+            key_list.append(i)
+        for j in range(len(key_list) - 1):
+            if key_list[j] <= self.step * self.line.delta_distance < key_list[j + 1]:
+                key = key_list[j]  # 当前限速点位置
+                key_next = key_list[j + 1]  # 下一个限速点位置
+        limit_speed = self.line.speed_limit[key]  # 当前位置限速
+        limit_speed_next = self.line.speed_limit[key_next]  # 下一个限速点限速
+        final_locate = key_next // self.line.delta_distance
+        length = final_locate - self.step
+        if limit_speed_next < limit_speed:
+            self.ATP_limit = np.sqrt(limit_speed_next * limit_speed_next / 3.6 / 3.6 - 2 * self.train_model.max_bra_acc * length * self.line.delta_distance) * 3.6
 
     def reshape_action(self):  # 重整动作
         if self.step <= 0.1 * self.max_step:
@@ -170,12 +191,28 @@ class StateNode:
             if key_list[j] <= self.step * self.line.delta_distance < key_list[j + 1]:
                 key = key_list[j]
         limit_speed = self.line.speed_limit[key]
-        if self.state[1] * 3.6 >= limit_speed:  # 超速
+        if self.state[1] * 3.6 >= min(limit_speed, self.ATP_limit):  # 超速
             self.speed_punish = 1
-            self.current_limit_speed = limit_speed
+            self.current_limit_speed = min(limit_speed, self.ATP_limit)
         else:
             self.speed_punish = 0
-            self.current_limit_speed = limit_speed
+            self.current_limit_speed = min(limit_speed, self.ATP_limit)
+
+    def speed_check2(self):
+        key_list = []
+        key = 0
+        for i in self.line.speed_limit.keys():
+            key_list.append(i)
+        for j in range(len(key_list) - 1):
+            if key_list[j] <= self.step * self.line.delta_distance < key_list[j + 1]:
+                key = key_list[j]
+        limit_speed = self.line.speed_limit[key]
+        self.c_limit_speed = self.line.speed_limit[key]
+        self.a_limit_speed = min(self.c_limit_speed, self.ATP_limit)
+        if self.state[1] * 3.6 >= limit_speed:  # 超速
+            self.speed_punish = 1
+        else:
+            self.speed_punish = 0
 
     # 下面是舒适度检查过程
     def comfort_check(self):
@@ -209,11 +246,13 @@ class StateNode:
 
     # 加入shield后的安全状态转移过程
     def safe_state_transition(self):
+        self.get_ATP_limit()
         self.get_action()
         self.reshape_action()
         self.get_acc()
         if self.Shield_Check():
             self.get_safe_action()
+            self.reshape_action()
             self.get_acc()
         self.get_next_state()
         self.get_power()
@@ -235,7 +274,7 @@ class StateNode:
         velocity = np.sqrt(temp_square_velocity)
         if velocity <= 0:
             velocity = np.array(1).reshape(1)
-        if velocity * 3.6 > next_limit_speed:
+        if velocity * 3.6 > min(next_limit_speed, self.ATP_limit):
             return 1
         else:
             return 0
@@ -247,18 +286,19 @@ class StateNode:
         initial_velocity = self.state[1].copy()
         while chaosu_flag != 1:
             xunhuan_count += 1
-            if xunhuan_count > 15:
+            if xunhuan_count > 30:
                 temp_acc = self.acc - self.g_acc - self.c_acc
                 if temp_acc >= 0:
                     self.action = temp_acc * self.train_model.weight / self.train_model.max_traction_force
                 else:
                     self.action = temp_acc * self.train_model.weight / self.train_model.max_brake_force
-                if self.action > 1.5:
-                    self.action = np.array(1.5).reshape(1)
-                if self.action < -1.5:
-                    self.action = np.array(-1.5).reshape(1)
+                if self.action > 1:
+                    self.action = np.array(1).reshape(1)
+                if self.action < -1:
+                    self.action = np.array(-1).reshape(1)
                 break
-            temp_velocity = self.state[1]
+            # temp_velocity = self.state[1]
+            temp_velocity = initial_velocity
             temp_square_velocity = temp_velocity * temp_velocity + 2 * self.acc * self.line.delta_distance
             if temp_square_velocity <= 1:
                 temp_square_velocity = np.array(1).reshape(1)
@@ -272,11 +312,11 @@ class StateNode:
                 if xunhuan_count == 1:
                     if self.acc > 0:
                         # self.acc = self.acc - 0.2
-                        self.acc = self.acc - 0.2
+                        self.acc = self.acc - 0.2 * (velocity / self.current_limit_speed)
                     else:
-                        self.acc = self.acc - 0.2
+                        self.acc = self.acc - 0.2 * (velocity / self.current_limit_speed)
                 else:
-                    self.acc = self.acc - 0.2
+                    self.acc = self.acc - 0.2 * (velocity / self.current_limit_speed)
             else:
                 chaosu_flag = 1
                 temp_acc = self.acc - self.g_acc - self.c_acc
@@ -292,7 +332,7 @@ class StateNode:
 
     # 下面是奖励的计算
     def get_reward(self, unsafe_counts, total_power):
-        self.speed_check()
+        self.speed_check2()
         self.comfort_check()
         if self.step == self.max_step:
             done = 1
@@ -309,12 +349,12 @@ class StateNode:
             if self.speed_punish:
                 unsafe_counts += 1
                 # self.current_reward = -0.001 * total_power - 25 * self.next_state[1] + 1 * t_punish + e_reward - 10 * self.comfort_punish
-                self.current_reward = -3 * (total_power - self.line.ac_power) - 25 * self.next_state[1] + 2 * t_punish + e_reward - 10 * self.comfort_punish
+                self.current_reward = -3 * (total_power - self.line.ac_power) - 2 * self.next_state[1] + 2 * t_punish + e_reward - 10 * self.comfort_punish
                 # self.current_reward = -1 * (total_power - self.line.ac_power) - 25 * self.next_state[1] + 1 * t_punish + e_reward - 10 * self.comfort_punish + self.p_indicator
             else:
                 unsafe_counts += 0
                 # self.current_reward = -0.001 * total_power - 25 * self.next_state[1] + 1 * t_punish + e_reward - 10 * self.comfort_punish
-                self.current_reward = -3 * (total_power - self.line.ac_power) - 25 * self.next_state[1] + 2 * t_punish + e_reward - 10 * self.comfort_punish
+                self.current_reward = -3 * (total_power - self.line.ac_power) - 2 * self.next_state[1] + 2 * t_punish + e_reward - 10 * self.comfort_punish
                 # self.current_reward = -1 * (total_power - self.line.ac_power) - 25 * self.next_state[1] + 1 * t_punish + e_reward - 10 * self.comfort_punish
         else:
             done = 0  # 能耗前的系数影响平化程度，时间项的系数影响整体的曲线形状
