@@ -41,6 +41,7 @@ class StateNode:
         self.p_indicator = -10  # 超速惩罚
 
         self.ATP_limit = float("inf")
+        self.slope = 0.0
 
     # # 获取最大step
     # def get_max_step(self):
@@ -112,6 +113,7 @@ class StateNode:
             if key_list[j] <= self.step * self.line.delta_distance < key_list[j + 1]:
                 key = key_list[j]
         gradient = self.line.gradient[key]
+        self.slope = gradient / 10
         self.g_acc = -9.8 * gradient / 1000  # g_ acc = 9.8 * g /1000
         del key_list
 

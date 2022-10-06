@@ -287,7 +287,8 @@ def draw_cum_prob_curve(data, bins=20, title='Distribution Of Errors', xlabel='T
     fig, ax1 = plt.subplots(1, 1, figsize=(12, 6), dpi=150, facecolor='w')
     font1 = {'weight': 600, 'size': 15}
 
-    n, bins, patches = ax1.hist(data, bins=bins, alpha=0.65, edgecolor='k')  # Probability distribution histogram
+    n, bins, patches = ax1.hist(data, bins=bins, alpha=0.65, edgecolor='k', label="Frequency")  # Probability distribution histogram
+    # plt.legend(loc='best')
     yt = plt.yticks()
     yt1 = yt[0].tolist()
     yt2 = [i / sum(n) for i in yt1]
@@ -304,12 +305,13 @@ def draw_cum_prob_curve(data, bins=20, title='Distribution Of Errors', xlabel='T
             temp = sum(freq[:i + 1])
         acc_freq.append(temp)
     ax2 = ax1.twinx()  # double ylable
-    ax2.plot(X, acc_freq)  # Cumulative probability curve
+    ax2.plot(X, acc_freq, 'r', label='Cumulative Probability Curve')  # Cumulative probability curve
     ax2.yaxis.set_major_formatter(FuncFormatter(to_percent))
     ax1.set_xlabel(xlabel, font1)
     ax1.set_title(title, font1)
     ax1.set_ylabel('Frequency', font1)
     ax2.set_ylabel("Cumulative Frequency", font1)
+    fig.legend(loc=1, bbox_to_anchor=(1, 1), bbox_transform=ax1.transAxes)
     if save:
         plt.savefig(path + f"{tag}_cn")
     plt.show()
