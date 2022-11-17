@@ -22,7 +22,7 @@ class Train:
 
         # 最大加速度最大减速度
         self.max_trac_acc = 1.5
-        self.max_bra_acc = -1.2
+        self.max_bra_acc = -1.5
 
     def get_max_traction_force(self, cur_v):  # 速度单位为km/h，用当前速度
         self.get_n1(cur_v)

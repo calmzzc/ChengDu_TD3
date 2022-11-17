@@ -27,8 +27,8 @@ curr_time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")  # 获取当前时
 class TD3Config:
     def __init__(self) -> None:
         self.algo = 'TD3_CD'
-        self.env = 'Section8'
-        self.seed = 2  # 2能达到一定的效果
+        self.env = 'Section1'  # 1、2、4、5、6、7、8、9再跑一遍，SAC、DDPG启发改成0.03试一下
+        self.seed = 1  # 2能达到一定的效果
         self.start_timestep = 25e3  # Time steps initial random policy is used
         self.eval_freq = 5e3  # How often (time steps) we evaluate
         self.train_eps = 500
@@ -39,9 +39,14 @@ class TD3Config:
         self.batch_size = 256  # Batch size for both actor and critic
         self.gamma = 0.99  # gamma factor
         self.lr = 3e-4  # Target network update rate
-        self.result_path = curr_path + "/outputs/" + str(self.lr) + '/' + self.env + '/' + curr_time + '/results/'  # path to save results
-        self.model_path = curr_path + "/outputs/" + str(self.lr) + '/' + self.env + '/' + curr_time + '/models/'  # path to save models
-        self.data_path = curr_path + "/outputs/" + str(self.lr) + '/' + self.env + '/' + curr_time + '/data/'  # path to save data
+        self.shield = 1
+        if self.shield:
+            self.algo_n = "Shield"
+        else:
+            self.algo_n = "no_Shield"
+        self.result_path = curr_path + "/outputs/" + str(self.lr) + '/' + self.algo_n + '/' + self.env + '/' + curr_time + '/results/'  # path to save results
+        self.model_path = curr_path + "/outputs/" + str(self.lr) + '/' + self.algo_n + '/' + self.env + '/' + curr_time + '/models/'  # path to save models
+        self.data_path = curr_path + "/outputs/" + str(self.lr) + '/' + self.algo_n + '/' + self.env + '/' + curr_time + '/data/'  # path to save data
         self.policy_noise = 0.2  # Noise added to target policy during critic update
         self.noise_clip = 0.5  # Range to clip target policy noise
         self.policy_freq = 2  # Frequency of delayed policy updates
@@ -57,7 +62,7 @@ def env_agent_config(cfg, seed=1):
     random.seed(cfg.seed)
     torch.backends.cudnn.deterministic = True
 
-    state_dim = 2
+    state_dim = 4
     action_dim = 1
     agent = TD3(state_dim, action_dim, 1, cfg)
     train_model = Train()
@@ -85,9 +90,11 @@ def train(cfg, line, agent, train_model):
     node_list = []  # 节点列表
     for i_ep in range(cfg.train_eps):
         total_ep_list.append(i_ep)
-        state = np.zeros(2)
+        state = np.zeros(4)
         state[0] = np.array(0).reshape(1)
         state[1] = np.array(0).reshape(1)
+        state[2] = np.array(0).reshape(1)
+        state[3] = np.array(0).reshape(1)
         # ou_noise.reset()
         done = False
         ep_reward = 0
@@ -110,8 +117,12 @@ def train(cfg, line, agent, train_model):
         while True:
             i_step += 1
             state_node.get_last_node(node_list)
+            if cfg.shield:
+                state_node.safe_state_transition()  # Shield动作转移
+            else:
+                state_node.state_transition()  # 一般动作转移
             # state_node.state_transition() # 一般动作转移
-            state_node.safe_state_transition()  # Shield动作转移
+            # state_node.safe_state_transition()  # Shield动作转移
             # state_node.Mcts_State_Transition()  # Shield Mcts动作转移
             total_power = total_power + state_node.t_power + state_node.re_power
             t_power += state_node.t_power
@@ -210,9 +221,11 @@ def eval(cfg, line, agent, train_model):
     node_list = []  # 节点列表
     for i_ep in range(cfg.eval_eps):
         total_ep_list.append(i_ep)
-        state = np.zeros(2)
+        state = np.zeros(4)
         state[0] = np.array(0).reshape(1)
         state[1] = np.array(0).reshape(1)
+        state[2] = np.array(0).reshape(1)
+        state[3] = np.array(0).reshape(1)
         # ou_noise.reset()
         done = False
         ep_reward = 0
@@ -233,8 +246,12 @@ def eval(cfg, line, agent, train_model):
         while True:
             i_step += 1
             state_node.get_last_node(node_list)
+            if cfg.shield:
+                state_node.safe_state_transition()  # Shield动作转移
+            else:
+                state_node.state_transition()  # 一般动作转移
             # state_node.state_transition() # 一般动作转移
-            state_node.safe_state_transition()  # Shield动作转移
+            # state_node.safe_state_transition()  # Shield动作转移
             # state_node.Mcts_State_Transition()  # Shield Mcts动作转移
             total_power = total_power + state_node.t_power + state_node.re_power
             t_power += state_node.t_power
@@ -327,12 +344,14 @@ if __name__ == "__main__":
     #                    path=cfg.result_path)
     # plot_evalep_speed(ev_list, et_list, ea_list, eval_ep_list, eacc_list, tag="ep_eval", env=cfg.env, algo=cfg.algo,
     #                   path=cfg.result_path)
-    draw_cum_prob_curve(cal_list, bins=40, title="TEST", xlabel="Calculation Time (S)", tag="cal_time", path=cfg.result_path)
+    draw_cum_prob_curve(cal_list, bins=40, xlabel="Calculation Time (S)", tag="cal_time", path=cfg.result_path)
     print("训练时间为{}".format(train_time))
     print("计算时间为{}".format(eval_time / cfg.eval_eps))
+
+    # 数据导出
     output_excel = {'t_rewards': t_rewards, 't_ma_rewards': t_ma_rewards, 'rewards': rewards, 'ma_rewards': ma_rewards, 'ev_list': ev_list[1], 'et_list': et_list[1],
                     'ea_list': ea_list[1],
                     'eacc_list': eacc_list[1],
                     'limit_list': limit_list, 'A_limit_list': A_limit_list, 'unsafe_c': unsafe_c, 'ma_unsafe_c': ma_unsafe_c, 'slope_list': slope_list}
     output = pd.DataFrame.from_dict(output_excel, orient='index')
-    output.to_excel(cfg.data_path + 'data.xlsx', index=False)
+    output.to_excel(cfg.data_path + '{}_data.xlsx'.format(cfg.algo_n + '_' + cfg.algo), index=False)

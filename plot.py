@@ -16,6 +16,8 @@ import numpy as np
 import matplotlib as mpl
 from matplotlib.ticker import FuncFormatter
 from matplotlib.pyplot import MultipleLocator
+from sklearn.preprocessing import MinMaxScaler
+from pandas import Series
 
 
 def chinese_font():
@@ -167,6 +169,9 @@ def evalplot_speed(total_v_list, total_t_list, total_a_list, total_acc_list, lim
     if save:
         plt.savefig(path + f"{tag}_speed_profile_cn")
     plt.figure(dpi=150)
+    serise = Series(total_a_list[1])
+    value = serise.values.reshape(len(serise), 1)
+    total_a_list[1] = MinMaxScaler(feature_range=(-1, 1)).fit_transform(value)
     plt.plot(total_a_list[1])
     plt.legend((u'动作曲线',), loc='best', prop=chinese_font())
     if save:
@@ -269,7 +274,7 @@ def plot_evalep_speed(total_v_list, total_t_list, total_a_list, total_ep_list, t
     plt.show()
 
 
-def draw_cum_prob_curve(data, bins=20, title='Distribution Of Errors', xlabel='The Error(mm)', tag="cal_time", save=True, path='./'):
+def draw_cum_prob_curve(data, bins=20, xlabel='The Error(mm)', tag="cal_time", save=True, path='./'):
     """
     plot Probability distribution histogram and Cumulative probability curve.
 
@@ -308,7 +313,7 @@ def draw_cum_prob_curve(data, bins=20, title='Distribution Of Errors', xlabel='T
     ax2.plot(X, acc_freq, 'r', label='Cumulative Probability Curve')  # Cumulative probability curve
     ax2.yaxis.set_major_formatter(FuncFormatter(to_percent))
     ax1.set_xlabel(xlabel, font1)
-    ax1.set_title(title, font1)
+    # ax1.set_title(title, font1)
     ax1.set_ylabel('Frequency', font1)
     ax2.set_ylabel("Cumulative Frequency", font1)
     fig.legend(loc=1, bbox_to_anchor=(1, 1), bbox_transform=ax1.transAxes)
